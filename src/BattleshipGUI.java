@@ -18,23 +18,23 @@ import java.util.Scanner;
 import javax.swing.JOptionPane;
 public class BattleshipGUI extends JFrame {
 
-    Board playerBoard;
-    Board computerBoard;
+    Board playerBoard;      // Player 1's board (Left)
+    Board computerBoard;    // Player 2's or Computer's board (Right)
 
-    JButton[][] playerButtons;
-    JButton[][] computerButtons;
+    JButton[][] playerButtons;   // Interactive grid for Left board
+    JButton[][] computerButtons; // Interactive grid for Right board
 
-    JLabel statusLabel;
+    JLabel statusLabel;     // Displays prompts and game updates at the bottom
 
-    boolean playerTurn;
+    // Game State Variables
     boolean gameOver;
-    boolean placingShipsP1;
-    boolean placingShipsP2;
-    boolean placingHorizontal;
+    boolean placingShipsP1;     // True if Player 1 is currently placing ships
+    boolean placingShipsP2;     // True if Player 2 is currently placing ships
+    boolean placingHorizontal;  // Controls the orientation of the next ship placed
 
-    int shipsPlaced;
-    boolean vsComputer;
-    int currentPlayer;
+    int shipsPlaced;        // Counter for how many ships the current player has placed
+    boolean vsComputer;     // True for Single Player, False for Local 2-Player (Hotseat)
+    int currentPlayer;      // Tracks whose turn it is (1 for Player 1, 2 for Player 2/Computer)
 
     String[] shipNames   = {"Carrier", "Battleship", "Cruiser", "Submarine", "Destroyer"};
     int[]    shipLengths = {5, 4, 3, 3, 2};
@@ -46,6 +46,8 @@ public class BattleshipGUI extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
+        // Display initial startup dialog. During a code review, note that JOptionPane pauses the EDT
+        // until the user responds, making it a safe blocking mechanism for critical game states.
         int choice = JOptionPane.showConfirmDialog(null, "Play against the Computer? (Select No for local 2-player)", "Game Mode", JOptionPane.YES_NO_OPTION);
         vsComputer = (choice == JOptionPane.YES_OPTION);
 
@@ -77,6 +79,11 @@ public class BattleshipGUI extends JFrame {
         setVisible(true);
     }
     // Private Helper Methods to Build GUI
+
+    /**
+     * Constructs the topmost panel containing general utility actions.
+     * Uses ActionListeners to bridge button clicks into the main GUI state machine.
+     */
     private JPanel buildTopPanel() {
         JPanel panel = new JPanel();
 
@@ -111,6 +118,13 @@ public class BattleshipGUI extends JFrame {
         panel.add(orientationButton);
         return panel;
     }
+
+    /**
+     * Core layout function.
+     * Generates a pair of 10x10 grids representing the distinct boards.
+     * During a code review, explain that `GridLayout` handles the automatic scaling and positioning of the 100 buttons per board,
+     * while `final` int references inside the loops ensure the anonymous ActionReceivers point to the correct static memory bounds exactly when instantiated.
+     */
     private JPanel buildBoardsPanel() {
         JPanel wrapper = new JPanel(new GridLayout(1, 2, 10, 0));
 
@@ -164,6 +178,10 @@ public class BattleshipGUI extends JFrame {
         wrapper.add(computerPanel);
         return wrapper;
     }
+
+    /**
+     * Constructs the contextual readout label pinned to the bottom of the window.
+     */
     private JPanel buildBottomPanel() {
         statusLabel = new JLabel("Player 1: Place your Carrier (length 5) — click LEFT board",
                 SwingConstants.CENTER);
@@ -173,19 +191,30 @@ public class BattleshipGUI extends JFrame {
         panel.add(statusLabel);
         return panel;
     }
+
+    /**
+     * The single most important visual function in the GUI.
+     * Ensures separation of View from the Model. Instead of buttons updating their own colors,
+     * this function queries the explicit integers embedded in the 'Board' model files and forcibly syncs the panels.
+     * Call this explicitly whenever *any* action mutates global data.
+     */
     private void refreshBoards() {
         boolean p1Visible = false;
         boolean p2Visible = false;
 
+        // Logic to determine which board's ships should be visible to the players.
+        // Hiding ships is what makes the game fair in both single and multiplayer modes.
         if (vsComputer) {
-            p1Visible = true;
-            p2Visible = gameOver;
+            p1Visible = true; // Player 1 can always see their own ships against the computer.
+            p2Visible = gameOver; // Computer's ships are strictly hidden until the game ends.
         } else {
+            // In 2-Player Mode, we dynamically show the board belonging only to the active player.
             if (placingShipsP1) p1Visible = true;
             else if (placingShipsP2) p2Visible = true;
             else if (currentPlayer == 1) p1Visible = true;
             else if (currentPlayer == 2) p2Visible = true;
 
+            // Once the game ends, reveal everything to both players to see the devastation.
             if (gameOver) {
                 p1Visible = true;
                 p2Visible = true;
@@ -232,13 +261,18 @@ public class BattleshipGUI extends JFrame {
             }
         }
 
-        revalidate();
-        repaint();
+        revalidate(); // Instructs the JFrame to evaluate any layout restructuring
+        repaint();    // Schedules a graphics redraw over the Swing component chain
     }
 
+    /**
+     * Encapsulates the entire logical routing tree for clicking the Left Panel.
+     * Uses `currentPlayer` and `placingShips` flags to contextually translate a click into placing, shooting, or ignoring perfectly.
+     */
     private void handlePlayerBoardClick(int row, int col) {
         if (gameOver) return;
 
+        // --- PHASE: Player 1 Placing Ships ---
         if (placingShipsP1) {
             int length = shipLengths[shipsPlaced];
             if (!playerBoard.isValidPlacement(row, col, length, placingHorizontal)) {
@@ -252,11 +286,14 @@ public class BattleshipGUI extends JFrame {
             refreshBoards();
 
             if (shipsPlaced == 5) {
-                placingShipsP1 = false;
+                placingShipsP1 = false; // Player 1 finishes placing
                 if (!vsComputer) {
+                    // Transition to Player 2's placement phase
                     placingShipsP2 = true;
                     shipsPlaced = 0;
-                    currentPlayer = 2; // for refreshBoards visibility
+                    currentPlayer = 2; // Flag for refreshBoards visibility
+
+                    // Show a blocking dialog so players can physically swap seats before the board reveals.
                     JOptionPane.showMessageDialog(this, "Pass to Player 2 to place ships!");
                     refreshBoards();
                     statusLabel.setText("Player 2: Place your Carrier (length 5) - click RIGHT board");
@@ -268,8 +305,9 @@ public class BattleshipGUI extends JFrame {
                         + " (length " + shipLengths[shipsPlaced] + ") — click LEFT board");
             }
         } else if (!placingShipsP1 && !placingShipsP2) {
+            // --- PHASE: Combat ---
             if (!vsComputer && currentPlayer == 2) {
-                // Player 2 attacking Player 1
+                // Player 2 attacking Player 1 (because Player 2 clicks on the Left board)
                 if (playerBoard.alreadyShot(row, col)) {
                     statusLabel.setText("Already fired there! Pick a different cell.");
                     return;
@@ -286,6 +324,8 @@ public class BattleshipGUI extends JFrame {
                 }
 
                 statusLabel.setText(message);
+
+                // Prompt to pass the keyboard back to Player 1 before revealing Player 1's screen.
                 JOptionPane.showMessageDialog(this, message + "\nPass the keyboard to Player 1, then click OK!");
                 currentPlayer = 1;
                 refreshBoards();
@@ -293,9 +333,16 @@ public class BattleshipGUI extends JFrame {
             }
         }
     }
+
+    /**
+     * Encapsulates the entire logical routing tree for clicking the Right Panel.
+     * Essentially mirrors `handlePlayerBoardClick`, routing placement logic to ComputerBoard and attacking logic
+     * from Player 1 onto the enemy target.
+     */
     private void handleComputerBoardClick(int row, int col) {
         if (gameOver) return;
 
+        // --- PHASE: Player 2 Placing Ships ---
         if (placingShipsP2) {
             int length = shipLengths[shipsPlaced];
             if (!computerBoard.isValidPlacement(row, col, length, placingHorizontal)) {
@@ -309,8 +356,9 @@ public class BattleshipGUI extends JFrame {
             refreshBoards();
 
             if (shipsPlaced == 5) {
-                placingShipsP2 = false;
-                currentPlayer = 1;
+                placingShipsP2 = false; // Player 2 finishes placing
+                currentPlayer = 1; // Hand control back to player 1 for the first shot
+
                 JOptionPane.showMessageDialog(this, "Pass to Player 1 to start the game!");
                 refreshBoards();
                 statusLabel.setText("Player 1's turn! Click RIGHT board to fire.");
@@ -319,8 +367,9 @@ public class BattleshipGUI extends JFrame {
                         + " (length " + shipLengths[shipsPlaced] + ") — click RIGHT board");
             }
         } else if (!placingShipsP1 && !placingShipsP2) {
+            // --- PHASE: Combat ---
             if (currentPlayer == 1) {
-                // Player 1 attacking Player 2 / Computer
+                // Player 1 attacking Player 2 / Computer (Clicking the Right board)
                 if (computerBoard.alreadyShot(row, col)) {
                     statusLabel.setText("Already fired there! Pick a different cell.");
                     return;
@@ -338,8 +387,11 @@ public class BattleshipGUI extends JFrame {
                 }
 
                 if (vsComputer) {
-                    currentPlayer = 2;
+                    currentPlayer = 2; // Computer's turn
                     statusLabel.setText(message + " Computer is thinking...");
+
+                    // Add a tiny bit of artificial delay (1 sec Timer) so the computer's shots feel more realistic
+                    // instead of happening instantly after we click.
                     Timer timer = new Timer(1000, new ActionListener() {
                         public void actionPerformed(ActionEvent e) {
                             doComputerTurn();
@@ -349,6 +401,8 @@ public class BattleshipGUI extends JFrame {
                     timer.start();
                 } else {
                     statusLabel.setText(message);
+
+                    // Prompt hand-over for Hotseat Multiplayer
                     JOptionPane.showMessageDialog(this, message + "\nPass the keyboard to Player 2, then click OK!");
                     currentPlayer = 2;
                     refreshBoards();
@@ -357,6 +411,12 @@ public class BattleshipGUI extends JFrame {
             }
         }
     }
+
+    /**
+     * Routes the Computer's attack.
+     * Placed in an isolated function so it can be safely called from inside a `javax.swing.Timer` thread
+     * which introduces artificial reaction lag so human players aren't overwhelmed by instant computer shots.
+     */
     private void doComputerTurn() {
         int[] shot = Board.computerChooseShot(playerBoard,lastHitRow,lastHitCol);
 
@@ -390,33 +450,45 @@ public class BattleshipGUI extends JFrame {
         statusLabel.setText(message + " Your turn — click the right board.");
     }
 
+    /**
+     * Serialization mechanism.
+     * Flattens the active instance configurations and the two entire 100-cell int-grids sequentially to a .txt file.
+     * This demonstrates raw text stream handling (FileWriter wrapped in a PrintWriter).
+     */
     private void saveGame() {
         try {
+            // Use PrintWriter alongside FileWriter to write formatted text to our save file line-by-line.
             PrintWriter out = new PrintWriter(new FileWriter("savegame.txt"));
+
+            // Save top-level game state parameters (Turn flags, configuration, ship count)
             out.println(vsComputer ? 1 : 0);
             out.println(currentPlayer);
             out.println(placingShipsP1 ? 1 : 0);
             out.println(placingShipsP2 ? 1 : 0);
             out.println(shipsPlaced);
 
+            // Dump entire grid of Player 1 to save file as integers
             for (int r = 0; r < 10; r++) {
                 for (int c = 0; c < 10; c++) {
                     out.println(playerBoard.getGrid()[r][c]);
                 }
             }
 
+            // Dump entire grid of Player 2 / Computer to save file
             for (int r = 0; r < 10; r++) {
                 for (int c = 0; c < 10; c++) {
                     out.println(computerBoard.getGrid()[r][c]);
                 }
             }
 
+            // Save ships' data for Player 1
             for (int i = 0; i < shipsPlaced; i++) {
                 Ship s = playerBoard.getShips()[i];
                 out.println(s.getName());
                 out.println(s.getLength());
             }
 
+            // Save ships' data for Player 2 / Computer
             for (int i = 0; i < 5; i++) {
                 Ship s = computerBoard.getShips()[i];
                 out.println(s.getName());
@@ -430,15 +502,22 @@ public class BattleshipGUI extends JFrame {
         }
     }
 
+    /**
+     * Deserialization mechanism.
+     * Validates file existence, and unpacks the raw integer sequence perfectly backwards corresponding to saveGame().
+     * Offloads the actual heavy lifting of reconstructing the internal POJOs to `board.reconstructShips`.
+     */
     private void loadGame() {
         try {
             File f = new File("savegame.txt");
-            if (!f.exists()) {
+            if (!f.exists()) { // Prevent crashing if there is no file to read
                 JOptionPane.showMessageDialog(this, "No save game found.");
                 return;
             }
+            // Use Scanner to read sequentially from the text file in the exact order it was originally saved.
             Scanner in = new Scanner(f);
             
+            // Restore top-level states
             vsComputer = (in.nextInt() == 1);
             currentPlayer = in.nextInt();
             placingShipsP1 = (in.nextInt() == 1);
