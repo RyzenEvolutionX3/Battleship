@@ -4,6 +4,8 @@ import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.SwingConstants;
 import javax.swing.Timer;
+import javax.swing.BorderFactory;
+import javax.swing.border.Border;
 import java.awt.BorderLayout;
 import java.awt.GridLayout;
 import java.awt.Color;
@@ -122,21 +124,59 @@ public class BattleshipGUI extends JFrame {
     /**
      * Core layout function.
      * Generates a pair of 10x10 grids representing the distinct boards.
-     * During a code review, explain that `GridLayout` handles the automatic scaling and positioning of the 100 buttons per board,
-     * while `final` int references inside the loops ensure the anonymous ActionReceivers point to the correct static memory bounds exactly when instantiated.
+     * Added coordinate labels (A-J, 1-10) to mimic the actual physical Battleship boards.
      */
     private JPanel buildBoardsPanel() {
-        JPanel wrapper = new JPanel(new GridLayout(1, 2, 10, 0));
+        // Outer wrapper holding both players' boards
+        JPanel wrapper = new JPanel(new GridLayout(1, 2, 20, 0));
+        wrapper.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); // Add some padding around the edges
 
-        // --- Player's board (left side) ---
-        JPanel playerPanel = new JPanel(new GridLayout(10, 10));
+        // Colors representing the classic board game design
+        Color gridLineColor = new Color(0, 0, 128); // Dark blue for board grid lines
+        Border cellBorder = BorderFactory.createLineBorder(gridLineColor, 1);
+        Color labelBg = new Color(220, 220, 220); // Light gray for coordinates
+
+        // --- Player 1's board (left side) ---
+        JPanel playerBoardContainer = new JPanel(new BorderLayout());
+        JLabel p1Title = new JLabel("PLAYER 1 / YOU", SwingConstants.CENTER);
+        p1Title.setFont(new Font("Arial", Font.BOLD, 16));
+        p1Title.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
+        playerBoardContainer.add(p1Title, BorderLayout.NORTH);
+
+        // 11x11 grid: Top row is letters, left column is numbers, 10x10 is buttons
+        JPanel playerPanel = new JPanel(new GridLayout(11, 11, 0, 0));
+        playerPanel.setBorder(BorderFactory.createLineBorder(Color.BLACK, 2));
+
+        // Top-left corner is empty
+        JPanel p1Corner = new JPanel();
+        p1Corner.setBackground(labelBg);
+        playerPanel.add(p1Corner);
+
+        // Column Labels A-J
+        for (int c = 0; c < 10; c++) {
+            JLabel letterLabel = new JLabel(String.valueOf((char)('A' + c)), SwingConstants.CENTER);
+            letterLabel.setOpaque(true);
+            letterLabel.setBackground(labelBg);
+            letterLabel.setFont(new Font("Arial", Font.BOLD, 12));
+            playerPanel.add(letterLabel);
+        }
+
+        // Add numerical rows and the button grid
         for (int row = 0; row < 10; row++) {
+            // Row number
+            JLabel numLabel = new JLabel(String.valueOf(row + 1), SwingConstants.CENTER);
+            numLabel.setOpaque(true);
+            numLabel.setBackground(labelBg);
+            numLabel.setFont(new Font("Arial", Font.BOLD, 12));
+            playerPanel.add(numLabel);
+
             for (int col = 0; col < 10; col++) {
                 JButton btn = new JButton();
-                btn.setPreferredSize(new Dimension(45, 45));
-                btn.setBackground(Color.CYAN);
+                btn.setPreferredSize(new Dimension(40, 40));
+                btn.setBackground(Color.BLUE); // Classic blue plastic color
                 btn.setOpaque(true);
-                btn.setBorderPainted(false);
+                btn.setBorderPainted(true);
+                btn.setBorder(cellBorder); // Tighter grid lines instead of floating buttons
 
                 final int r = row;
                 final int c = col;
@@ -150,16 +190,46 @@ public class BattleshipGUI extends JFrame {
                 playerPanel.add(btn);
             }
         }
+        playerBoardContainer.add(playerPanel, BorderLayout.CENTER);
 
-        // --- Computer's board (right side) ---
-        JPanel computerPanel = new JPanel(new GridLayout(10, 10));
+
+        // --- Computer's / Player 2's board (right side) ---
+        JPanel computerBoardContainer = new JPanel(new BorderLayout());
+        JLabel p2Title = new JLabel("PLAYER 2 / COMPUTER", SwingConstants.CENTER);
+        p2Title.setFont(new Font("Arial", Font.BOLD, 16));
+        p2Title.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
+        computerBoardContainer.add(p2Title, BorderLayout.NORTH);
+
+        JPanel computerPanel = new JPanel(new GridLayout(11, 11, 0, 0));
+        computerPanel.setBorder(BorderFactory.createLineBorder(Color.BLACK, 2));
+
+        // Top-left corner is empty
+        JPanel p2Corner = new JPanel();
+        p2Corner.setBackground(labelBg);
+        computerPanel.add(p2Corner);
+
+        for (int c = 0; c < 10; c++) {
+            JLabel letterLabel = new JLabel(String.valueOf((char)('A' + c)), SwingConstants.CENTER);
+            letterLabel.setOpaque(true);
+            letterLabel.setBackground(labelBg);
+            letterLabel.setFont(new Font("Arial", Font.BOLD, 12));
+            computerPanel.add(letterLabel);
+        }
+
         for (int row = 0; row < 10; row++) {
+            JLabel numLabel = new JLabel(String.valueOf(row + 1), SwingConstants.CENTER);
+            numLabel.setOpaque(true);
+            numLabel.setBackground(labelBg);
+            numLabel.setFont(new Font("Arial", Font.BOLD, 12));
+            computerPanel.add(numLabel);
+
             for (int col = 0; col < 10; col++) {
                 JButton btn = new JButton();
-                btn.setPreferredSize(new Dimension(45, 45));
-                btn.setBackground(Color.CYAN);
+                btn.setPreferredSize(new Dimension(40, 40));
+                btn.setBackground(Color.BLUE);
                 btn.setOpaque(true);
-                btn.setBorderPainted(false);
+                btn.setBorderPainted(true);
+                btn.setBorder(cellBorder);
 
                 final int r = row;
                 final int c = col;
@@ -173,12 +243,14 @@ public class BattleshipGUI extends JFrame {
                 computerPanel.add(btn);
             }
         }
+        computerBoardContainer.add(computerPanel, BorderLayout.CENTER);
 
-        wrapper.add(playerPanel);
-        wrapper.add(computerPanel);
+        // Add both assembled boards to the wrapper
+        wrapper.add(playerBoardContainer);
+        wrapper.add(computerBoardContainer);
         return wrapper;
     }
-
+    
     /**
      * Constructs the contextual readout label pinned to the bottom of the window.
      */
@@ -221,21 +293,33 @@ public class BattleshipGUI extends JFrame {
             }
         }
 
+        // Helper Color palette for classic physical aesthetics
+        Color waterColor = Color.BLUE; // Darker blue water
+        Color unhitShipColor = Color.DARK_GRAY; 
+        Color hitColor = new Color(200, 0, 0); // Solid standard Red
+        Color missColor = Color.WHITE; // Solid classic White
+        Font pegFont = new Font("Arial", Font.BOLD, 22);
+
         // Player 1's board (Left)
         for (int r = 0; r < 10; r++) {
             for (int c = 0; c < 10; c++) {
                 int cell = playerBoard.getCell(r, c);
+                // Style configurations
+                playerButtons[r][c].setFont(pegFont);
+
                 if (cell == Board.EMPTY || (cell == Board.SHIP && !p1Visible)) {
-                    playerButtons[r][c].setBackground(Color.CYAN);
+                    playerButtons[r][c].setBackground(waterColor);
                     playerButtons[r][c].setText("");
                 } else if (cell == Board.SHIP) {
-                    playerButtons[r][c].setBackground(Color.GRAY);
+                    playerButtons[r][c].setBackground(unhitShipColor);
                     playerButtons[r][c].setText("");
                 } else if (cell == Board.HIT) {
-                    playerButtons[r][c].setBackground(Color.RED);
+                    playerButtons[r][c].setBackground(hitColor);
+                    playerButtons[r][c].setForeground(Color.BLACK); // Subtle high-contrast text on bright red peg
                     playerButtons[r][c].setText("X");
                 } else if (cell == Board.MISS) {
-                    playerButtons[r][c].setBackground(Color.WHITE);
+                    playerButtons[r][c].setBackground(missColor);
+                    playerButtons[r][c].setForeground(Color.BLACK);
                     playerButtons[r][c].setText("O");
                 }
             }
@@ -245,17 +329,22 @@ public class BattleshipGUI extends JFrame {
         for (int r = 0; r < 10; r++) {
             for (int c = 0; c < 10; c++) {
                 int cell = computerBoard.getCell(r, c);
+                
+                computerButtons[r][c].setFont(pegFont);
+
                 if (cell == Board.EMPTY || (cell == Board.SHIP && !p2Visible)) {
-                    computerButtons[r][c].setBackground(Color.CYAN);
+                    computerButtons[r][c].setBackground(waterColor);
                     computerButtons[r][c].setText("");
                 } else if (cell == Board.SHIP) {
-                    computerButtons[r][c].setBackground(Color.GRAY);
+                    computerButtons[r][c].setBackground(unhitShipColor);
                     computerButtons[r][c].setText("");
                 } else if (cell == Board.HIT) {
-                    computerButtons[r][c].setBackground(Color.RED);
+                    computerButtons[r][c].setBackground(hitColor);
+                    computerButtons[r][c].setForeground(Color.BLACK);
                     computerButtons[r][c].setText("X");
                 } else if (cell == Board.MISS) {
-                    computerButtons[r][c].setBackground(Color.WHITE);
+                    computerButtons[r][c].setBackground(missColor);
+                    computerButtons[r][c].setForeground(Color.BLACK);
                     computerButtons[r][c].setText("O");
                 }
             }
@@ -429,13 +518,18 @@ public class BattleshipGUI extends JFrame {
 
         if (result == 0) {
             message = "Computer missed!";
-            // Extension A: no update needed on a miss
+            // Extension A: no update needed on a miss, we want it to remember the previous hit 
+            // so it can try a different adjacent square next turn!
         } else if (result == 1) {
             message = "Computer hit your ship!";
             // Extension A: update lastHitRow = row; lastHitCol = col;
+            lastHitRow = row; 
+            lastHitCol = col;
         } else {
             message = "Computer sunk your " + playerBoard.getSunkenShipName(row, col) + "!";
             // Extension A: reset lastHitRow = -1; lastHitCol = -1;
+            lastHitRow = -1; 
+            lastHitCol = -1;
         }
 
         refreshBoards();
